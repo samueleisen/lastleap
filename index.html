@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lastfall - 3D Web Game Prototype</title>
+  <meta name="description" content="Initial 3D web game foundation with smooth square flat ground and capsule player with clear facing direction.">
+  <link rel="stylesheet" href="./style.css">
+  
+  <!-- Import Map for Three.js ES Modules -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "./vendor/three.module.js",
+      "three/addons/": "./vendor/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <!-- 3D WebGL Canvas Container -->
+  <div id="game-container"></div>
+
+  <!-- HUD Overlay -->
+  <div id="ui-overlay">
+    <!-- Top Header & Quick Actions -->
+    <header class="header-bar">
+      <div class="brand-badge glass-panel interactive">
+        <span class="brand-dot"></span>
+        <span class="brand-title">Lastfall</span>
+        <span class="brand-sub">Flat Ground &amp; Capsule Prototype</span>
+      </div>
+
+      <div class="top-actions interactive">
+        <button id="btn-camera" class="btn-pill" title="Toggle Camera View (Key C)">
+          <span class="btn-key">C</span>
+          <span id="val-cam-mode">3rd Person</span>
+        </button>
+        <button id="btn-theme" class="btn-pill" title="Cycle Lighting Atmosphere (Key T)">
+          <span class="btn-key">T</span>
+          <span id="theme-label">Studio</span>
+        </button>
+        <button id="btn-reset" class="btn-pill" title="Respawn to Center (Key R)">
+          <span class="btn-key">R</span>
+          <span>Respawn</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Mid Right Telemetry Panel -->
+    <div class="hud-middle">
+      <div class="telemetry-card glass-panel interactive">
+        <div class="telemetry-header">
+          <span>Telemetry</span>
+          <span id="val-fps" style="color: var(--accent-cyan);">60 FPS</span>
+        </div>
+        <div class="telemetry-grid">
+          <div class="telemetry-item">
+            <span class="telemetry-label">Position X</span>
+            <span id="val-pos-x" class="telemetry-value">0.0</span>
+          </div>
+          <div class="telemetry-item">
+            <span class="telemetry-label">Position Y</span>
+            <span id="val-pos-y" class="telemetry-value">1.0</span>
+          </div>
+          <div class="telemetry-item">
+            <span class="telemetry-label">Position Z</span>
+            <span id="val-pos-z" class="telemetry-value">0.0</span>
+          </div>
+          <div class="telemetry-item">
+            <span class="telemetry-label">Speed</span>
+            <span id="val-speed" class="telemetry-value">0.0 m/s</span>
+          </div>
+          <div class="telemetry-item">
+            <span class="telemetry-label">Facing Heading</span>
+            <span id="val-heading" class="telemetry-value">0°</span>
+          </div>
+          <div class="telemetry-item">
+            <span class="telemetry-label">State</span>
+            <div id="val-status" class="status-badge status-idle">Idle</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom Controls & Info Bar -->
+    <footer class="bottom-bar">
+      <div class="controls-card glass-panel interactive">
+        <div class="controls-title">Controls Guide</div>
+        <div class="controls-row">
+          <div class="control-item">
+            <div class="keys-cluster">
+              <span class="keycap">W</span>
+              <span class="keycap">A</span>
+              <span class="keycap">S</span>
+              <span class="keycap">D</span>
+            </div>
+            <span>Move</span>
+          </div>
+          <div class="control-item">
+            <span class="keycap">SHIFT</span>
+            <span>Sprint</span>
+          </div>
+          <div class="control-item">
+            <span class="keycap">SPACE</span>
+            <span>Jump</span>
+          </div>
+          <div class="control-item">
+            <span class="keycap">DRAG</span>
+            <span>Orbit Camera</span>
+          </div>
+          <div class="control-item">
+            <span class="keycap">SCROLL</span>
+            <span>Zoom</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="info-card glass-panel interactive">
+        <div class="facing-indicator-badge">
+          <span>▲</span>
+          <span>Forward Visor + Nose Indicator</span>
+        </div>
+        <span>Square Ground: 42 × 42</span>
+      </div>
+    </footer>
+  </div>
+
+  <!-- Touch Controls Overlay for Mobile Devices -->
+  <div id="touch-controls">
+    <div class="touch-dpad">
+      <div></div>
+      <button class="touch-btn" data-touch-cmd="forward">▲</button>
+      <div></div>
+      <button class="touch-btn" data-touch-cmd="left">◀</button>
+      <div></div>
+      <button class="touch-btn" data-touch-cmd="right">▶</button>
+      <div></div>
+      <button class="touch-btn" data-touch-cmd="backward">▼</button>
+      <div></div>
+    </div>
+    <div class="touch-actions">
+      <button class="touch-action-btn" data-touch-cmd="jump">JUMP</button>
+      <button class="touch-action-btn" data-touch-cmd="sprint" style="font-size: 11px;">SPRINT</button>
+    </div>
+  </div>
+
+  <!-- Main Game Script -->
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>

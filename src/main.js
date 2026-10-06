@@ -4,6 +4,7 @@ import { Ground } from './ground.js';
 import { Player } from './player.js';
 import { CameraController } from './camera.js';
 import { InputManager } from './controls.js';
+import { DebugManager } from './debug.js';
 
 class GameApp {
   constructor() {
@@ -26,98 +27,40 @@ class GameApp {
     // 4. Input Manager
     this.input = new InputManager(this.sceneManager.renderer.domElement);
 
-    // 5. Game Loop timing
+    // 5. Standalone Debug Manager (disabled by default, 0 computation)
+    this.debug = new DebugManager(this);
+
+    // 6. Game Loop timing
     this.clock = new THREE.Clock();
-
-    // UI elements cache
-    this.dom = {
-      fps: document.getElementById('val-fps'),
-      posX: document.getElementById('val-pos-x'),
-      posY: document.getElementById('val-pos-y'),
-      posZ: document.getElementById('val-pos-z'),
-      speed: document.getElementById('val-speed'),
-      heading: document.getElementById('val-heading'),
-      status: document.getElementById('val-status'),
-      camMode: document.getElementById('val-cam-mode'),
-      btnReset: document.getElementById('btn-reset'),
-      btnCamera: document.getElementById('btn-camera'),
-      btnTheme: document.getElementById('btn-theme'),
-      themeLabel: document.getElementById('theme-label'),
-    };
-
-    // FPS calculation
-    this.frameCount = 0;
-    this.lastFpsUpdate = 0;
 
     // Themes
     this.themes = ['studio', 'sunset', 'cyber'];
     this.currentThemeIdx = 0;
 
-    this.setupUI();
+    this.setupShortcuts();
     this.animate = this.animate.bind(this);
     requestAnimationFrame(this.animate);
   }
 
-  setupUI() {
-    // Keyboard shortcuts handler
+  setupShortcuts() {
+    // Keyboard shortcuts (functional silently without HUD)
     this.input.onKeyCallback = (code) => {
       if (code === 'KeyC') {
-        const newMode = this.cameraController.toggleMode();
-        this.updateCameraUI(newMode);
+        this.cameraController.toggleMode();
       } else if (code === 'KeyR') {
         this.player.respawn();
       } else if (code === 'KeyT') {
         this.cycleTheme();
+      } else if (code === 'F3' || code === 'Backquote') {
+        this.debug.toggle();
       }
     };
-
-    // Button event listeners
-    this.dom.btnReset?.addEventListener('click', () => {
-      this.player.respawn();
-    });
-
-    this.dom.btnCamera?.addEventListener('click', () => {
-      const newMode = this.cameraController.toggleMode();
-      this.updateCameraUI(newMode);
-    });
-
-    this.dom.btnTheme?.addEventListener('click', () => {
-      this.cycleTheme();
-    });
-
-    // Touch controls for mobile / tablet
-    const touchButtons = document.querySelectorAll('[data-touch-cmd]');
-    touchButtons.forEach((btn) => {
-      const cmd = btn.getAttribute('data-touch-cmd');
-      const start = (e) => {
-        e.preventDefault();
-        this.input.setInput(cmd, true);
-      };
-      const end = (e) => {
-        e.preventDefault();
-        this.input.setInput(cmd, false);
-      };
-      btn.addEventListener('touchstart', start, { passive: false });
-      btn.addEventListener('touchend', end, { passive: false });
-      btn.addEventListener('mousedown', start);
-      btn.addEventListener('mouseup', end);
-    });
-  }
-
-  updateCameraUI(mode) {
-    if (this.dom.camMode) {
-      this.dom.camMode.textContent =
-        mode === 'third-person' ? '3rd Person' : mode === 'first-person' ? '1st Person' : 'Free Orbit';
-    }
   }
 
   cycleTheme() {
     this.currentThemeIdx = (this.currentThemeIdx + 1) % this.themes.length;
     const theme = this.themes[this.currentThemeIdx];
     this.sceneManager.setTheme(theme);
-    if (this.dom.themeLabel) {
-      this.dom.themeLabel.textContent = theme.charAt(0).toUpperCase() + theme.slice(1);
-    }
   }
 
   animate() {
@@ -136,43 +79,8 @@ class GameApp {
     // 3. Render Scene
     this.sceneManager.render();
 
-    // 4. Update Telemetry UI
-    const speed = this.player.getSpeed();
-    this.updateTelemetry(dt, speed);
-  }
-
-  updateTelemetry(dt, speed) {
-    this.frameCount++;
-    const now = performance.now();
-    if (now - this.lastFpsUpdate >= 400) {
-      const currentFps = Math.round((this.frameCount * 1000) / (now - this.lastFpsUpdate));
-      if (this.dom.fps) this.dom.fps.textContent = `${currentFps} FPS`;
-      this.frameCount = 0;
-      this.lastFpsUpdate = now;
-    }
-
-    const pos = this.player.position;
-    if (this.dom.posX) this.dom.posX.textContent = pos.x.toFixed(1);
-    if (this.dom.posY) this.dom.posY.textContent = pos.y.toFixed(1);
-    if (this.dom.posZ) this.dom.posZ.textContent = pos.z.toFixed(1);
-    if (this.dom.speed) this.dom.speed.textContent = `${speed.toFixed(1)} m/s`;
-    if (this.dom.heading) this.dom.heading.textContent = `${this.player.getFacingDegrees()}°`;
-
-    if (this.dom.status) {
-      if (!this.player.isGrounded) {
-        this.dom.status.textContent = pos.y < 0 ? 'Falling' : 'In Air';
-        this.dom.status.className = 'status-badge status-air';
-      } else if (speed > 7.0) {
-        this.dom.status.textContent = 'Sprinting';
-        this.dom.status.className = 'status-badge status-sprint';
-      } else if (speed > 0.2) {
-        this.dom.status.textContent = 'Walking';
-        this.dom.status.className = 'status-badge status-walk';
-      } else {
-        this.dom.status.textContent = 'Idle';
-        this.dom.status.className = 'status-badge status-idle';
-      }
-    }
+    // 4. Update Debug (early exits immediately if disabled)
+    this.debug.update(dt);
   }
 }
 

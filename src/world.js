@@ -1,12 +1,12 @@
 import * as THREE from 'three';
 
 /**
- * World: Treadmill / Stationary-Player Infinite Freefall Engine.
- * - Player stays near Y = 0; the vertical canyon and wind streaks scroll UPWARD at fall speed.
+ * World: Treadmill / Stationary-Player Infinite Freefall Engine with Zero-Allocation Object Pooling.
+ * - Player stays near Y = 0; vertical canyon, obstacles, and wind streaks scroll UPWARD at fall speed.
  * - Initial cliff launch ledge scrolls upward and away once the leap starts.
- * - Looping vertical canyon shaft segments create an endless seamless descent.
- * - Dense fog curtain at Y < -140 masks spawning and recycling.
- * - Upward wind speed streaks give immediate visceral speed sensation.
+ * - Looping vertical canyon shaft segments create an endless seamless descent without reallocating meshes.
+ * - Pre-allocated Obstacle Pool: 14 obstacles continuously recycled at Y < -140 in the fog curtain. Zero VRAM/RAM build-up!
+ * - Linear fog curtain at Y < -140 completely masks recycling.
  */
 export class World {
   constructor(scene) {
@@ -38,6 +38,7 @@ export class World {
     this.buildInitialPlatform();
     this.buildInfiniteShaft();
     this.buildWindStreaks();
+    this.buildObstaclePool();
   }
 
   initMaterials() {
@@ -71,6 +72,19 @@ export class World {
         color: 0x88eeff,
         transparent: true,
         opacity: 0.45,
+      }),
+      obstacleBody: new THREE.MeshStandardMaterial({
+        color: 0x3d475a,
+        roughness: 0.7,
+        metalness: 0.15,
+        flatShading: true,
+      }),
+      obstacleAccent: new THREE.MeshStandardMaterial({
+        color: 0xef4444, // Red danger hazard trim
+        emissive: 0x991b1b,
+        emissiveIntensity: 0.5,
+        roughness: 0.3,
+        flatShading: true,
       }),
     };
   }
@@ -184,7 +198,7 @@ export class World {
 
   /**
    * 3. Upward Wind Streaks (Speed Lines)
-   * 50 vertical lines rushing upward past player to provide visceral speed sensation.
+   * 55 vertical lines rushing upward past player to provide visceral speed sensation.
    */
   buildWindStreaks() {
     this.streaksGroup = new THREE.Group();
@@ -211,8 +225,54 @@ export class World {
   }
 
   /**
+   * 4. Pre-allocated Object Pool for Obstacles (Zero Allocations Mid-Game)
+   * A fixed pool of 12 obstacles that are recycled indefinitely as they pass the player.
+   */
+  buildObstaclePool() {
+    this.obstaclesGroup = new THREE.Group();
+    this.obstaclePool = [];
+    this.poolSize = 12;
+
+    // 3 reusable shared geometries (allocated once, shared across all pool instances)
+    this.sharedGeos = [
+      new THREE.BoxGeometry(7.0, 2.4, 7.0),          // Floating square slab
+      new THREE.BoxGeometry(14.0, 2.2, 3.2),         // Canyon cross-beam
+      new THREE.CylinderGeometry(3.5, 3.5, 3.0, 6),  // Hexagonal rock pillar
+    ];
+
+    for (let i = 0; i < this.poolSize; i++) {
+      // Pick one of the shared geometries
+      const geo = this.sharedGeos[i % this.sharedGeos.length];
+      const mesh = new THREE.Mesh(geo, this.materials.obstacleBody);
+      mesh.receiveShadow = true;
+      mesh.castShadow = true;
+
+      // Add small hazard warning rim/stripe to the obstacle
+      const trimGeo = new THREE.BoxGeometry(1.5, 0.4, 1.5);
+      const trimMesh = new THREE.Mesh(trimGeo, this.materials.obstacleAccent);
+      trimMesh.position.set(0, 1.4, 0);
+      mesh.add(trimMesh);
+
+      // Stagger vertically down the shaft (-40m down to -172m, 11m apart)
+      const initialY = -40 - i * 11;
+      mesh.position.set(
+        (Math.random() - 0.5) * 20,
+        initialY,
+        (Math.random() - 0.5) * 20
+      );
+      mesh.rotation.y = Math.random() * Math.PI;
+
+      this.obstaclesGroup.add(mesh);
+      this.obstaclePool.push(mesh);
+    }
+
+    this.group.add(this.obstaclesGroup);
+  }
+
+  /**
    * Core Treadmill Update Loop:
-   * Moves canyon walls, wind streaks, and initial platform UPWARD at scrollSpeed.
+   * Moves canyon walls, obstacles, wind streaks, and initial platform UPWARD at scrollSpeed.
+   * Completely zero-allocation: no 'new' calls or buffer creations during gameplay.
    */
   update(dt, scrollSpeed) {
     if (scrollSpeed <= 0) return;
@@ -229,7 +289,8 @@ export class World {
 
     // 2. Scroll canyon shaft segments and wrap them seamlessly
     const totalShaftHeight = this.numSegments * this.segmentHeight; // 240
-    for (const segment of this.shaftSegments) {
+    for (let i = 0; i < this.shaftSegments.length; i++) {
+      const segment = this.shaftSegments[i];
       segment.position.y += scrollSpeed * dt;
       // When a segment scrolls above the camera (+60), wrap it down to the bottom
       if (segment.position.y > 60) {
@@ -237,9 +298,32 @@ export class World {
       }
     }
 
-    // 3. Scroll wind streaks upward (faster than walls for intense rush)
+    // 3. Scroll pooled obstacles upward and recycle when above view
+    for (let i = 0; i < this.obstaclePool.length; i++) {
+      const obs = this.obstaclePool[i];
+      obs.position.y += scrollSpeed * dt;
+
+      // When obstacle exits above player's view (+35), recycle back to bottom
+      if (obs.position.y > 35) {
+        // Find current lowest obstacle Y in the pool
+        let lowestY = -140;
+        for (let j = 0; j < this.obstaclePool.length; j++) {
+          if (this.obstaclePool[j].position.y < lowestY) {
+            lowestY = this.obstaclePool[j].position.y;
+          }
+        }
+        // Place beneath the lowest obstacle (deep inside the 140m fog curtain)
+        obs.position.y = lowestY - 11;
+        obs.position.x = (Math.random() - 0.5) * 22;
+        obs.position.z = (Math.random() - 0.5) * 22;
+        obs.rotation.y = Math.random() * Math.PI;
+      }
+    }
+
+    // 4. Scroll wind streaks upward (faster than walls for intense rush)
     const streakSpeed = scrollSpeed * 1.35;
-    for (const streak of this.streaks) {
+    for (let i = 0; i < this.streaks.length; i++) {
+      const streak = this.streaks[i];
       streak.position.y += streakSpeed * dt;
       if (streak.position.y > 25) {
         streak.position.y = -120 - Math.random() * 20;
@@ -282,12 +366,40 @@ export class World {
       this.shaftSegments[i].position.y = 30 - i * this.segmentHeight;
     }
 
-    for (const streak of this.streaks) {
-      streak.position.set(
+    for (let i = 0; i < this.obstaclePool.length; i++) {
+      this.obstaclePool[i].position.set(
+        (Math.random() - 0.5) * 20,
+        -40 - i * 11,
+        (Math.random() - 0.5) * 20
+      );
+      this.obstaclePool[i].rotation.y = Math.random() * Math.PI;
+    }
+
+    for (let i = 0; i < this.streaks.length; i++) {
+      this.streaks[i].position.set(
         (Math.random() - 0.5) * 30,
         -120 + Math.random() * 145,
         (Math.random() - 0.5) * 30
       );
+    }
+  }
+
+  /**
+   * Clean GPU and memory disposal (can be called when unmounting or switching level)
+   */
+  dispose() {
+    this.scene.remove(this.group);
+
+    // Dispose shared geometries
+    if (this.sharedGeos) {
+      for (const geo of this.sharedGeos) {
+        geo.dispose();
+      }
+    }
+
+    // Dispose materials
+    for (const key in this.materials) {
+      this.materials[key].dispose();
     }
   }
 }

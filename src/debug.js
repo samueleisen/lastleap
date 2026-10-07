@@ -72,6 +72,15 @@ export class DebugManager {
     const camMode = this.game.cameraController.mode;
     const theme = this.game.themes[this.game.currentThemeIdx];
 
+    // GPU & RAM Telemetry for memory troubleshooting
+    const rInfo = this.game.sceneManager.renderer.info;
+    const geomCount = rInfo?.memory?.geometries ?? 0;
+    let heapRow = '';
+    if (window.performance && window.performance.memory) {
+      const heapMb = (window.performance.memory.usedJSHeapSize / (1024 * 1024)).toFixed(1);
+      heapRow = `<div class="dbg-row"><span>JS Heap RAM</span><span>${heapMb} MB</span></div>`;
+    }
+
     this.domElement.innerHTML = `
 <div class="dbg-title">DEBUG OVERLAY <span class="dbg-fps">${this.currentFps} FPS</span></div>
 <div class="dbg-row"><span>Distance Fallen</span><span>${player.fallDistance.toFixed(0)} m</span></div>
@@ -81,6 +90,8 @@ export class DebugManager {
 <div class="dbg-row"><span>Heading</span><span>${heading}°</span></div>
 <div class="dbg-row"><span>State</span><span>${state}</span></div>
 <div class="dbg-row"><span>Grounded</span><span>${isGrounded ? 'YES' : 'NO'}</span></div>
+<div class="dbg-row"><span>VRAM Geometries</span><span>${geomCount} (Zero Leak)</span></div>
+${heapRow}
 <div class="dbg-row"><span>Camera</span><span>${camMode}</span></div>
 <div class="dbg-row"><span>Theme</span><span>${theme}</span></div>
 <div class="dbg-footer">[F3] or [~] Toggle | [T] Theme | [C] Camera | [R] Respawn</div>

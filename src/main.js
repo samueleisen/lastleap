@@ -73,13 +73,17 @@ class GameApp {
     const cameraYaw = this.cameraController.getYaw();
     this.player.update(dt, inputState, cameraYaw);
 
-    // 2. Update Camera
+    // 2. Update World (Treadmill vertical scroll)
+    const scrollSpeed = this.player.getScrollSpeed();
+    this.world.update(dt, scrollSpeed);
+
+    // 3. Update Camera
     this.cameraController.update(dt);
 
-    // 3. Render Scene
+    // 4. Render Scene
     this.sceneManager.render();
 
-    // 4. Update Debug (early exits immediately if disabled)
+    // 5. Update Debug (early exits immediately if disabled)
     this.debug.update(dt);
   }
 }

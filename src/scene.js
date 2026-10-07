@@ -38,27 +38,26 @@ export class SceneManager {
   }
 
   initLighting() {
-    // Hemisphere light for soft ambient sky/ground reflections across vertical span
+    // Hemisphere light for ambient canyon reflections
     this.hemiLight = new THREE.HemisphereLight(0xddeeff, 0x1a202c, 0.75);
-    this.hemiLight.position.set(0, 350, 0);
+    this.hemiLight.position.set(0, 50, 0);
     this.scene.add(this.hemiLight);
 
-    // Directional sunlight positioned high to illuminate cliff face and ledge
+    // Directional sunlight casting crisp shadows across the descent shaft
     this.dirLight = new THREE.DirectionalLight(0xfffaed, 1.4);
-    this.dirLight.position.set(50, 390, 40);
+    this.dirLight.position.set(30, 50, 25);
     this.dirLight.castShadow = true;
 
-    // Direct shadow camera toward cliff launch pad
-    this.dirLight.target.position.set(0, 300, -10);
+    this.dirLight.target.position.set(0, 0, 0);
     this.scene.add(this.dirLight.target);
 
-    // Tune shadow bounds to cover the cliff platform crisply
+    // Tune shadow camera bounds to cover the action space around Y=0
     this.dirLight.shadow.mapSize.width = 2048;
     this.dirLight.shadow.mapSize.height = 2048;
     this.dirLight.shadow.camera.near = 1;
-    this.dirLight.shadow.camera.far = 200;
+    this.dirLight.shadow.camera.far = 120;
 
-    const shadowDist = 45;
+    const shadowDist = 32;
     this.dirLight.shadow.camera.left = -shadowDist;
     this.dirLight.shadow.camera.right = shadowDist;
     this.dirLight.shadow.camera.top = shadowDist;
@@ -69,15 +68,15 @@ export class SceneManager {
 
     // Secondary fill light for under-ledge and lower chasm visibility
     this.fillLight = new THREE.DirectionalLight(0x7090b0, 0.45);
-    this.fillLight.position.set(-60, 200, -30);
+    this.fillLight.position.set(-30, 25, -20);
     this.scene.add(this.fillLight);
   }
 
   initSky() {
-    // Sophisticated deep twilight gradient backdrop
+    // Deep twilight gradient backdrop
     this.scene.background = new THREE.Color(0x0e131f);
-    // Atmospheric fog calibrated so chasm floor is mystically visible 300m below
-    this.scene.fog = new THREE.FogExp2(0x0e131f, 0.0028);
+    // Linear Fog Curtain: clear near player (40m), 100% opaque at 140m to hide spawning
+    this.scene.fog = new THREE.Fog(0x0e131f, 40, 140);
   }
 
   setTheme(themeName) {

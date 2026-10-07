@@ -22,15 +22,38 @@ export class Player {
     this.facingAngle = 0; // rotation around Y axis (radians), 0 = facing +Z
     this.targetFacingAngle = 0;
 
+    // States: 'GROUNDED', 'FREEFALL'
+    this.state = 'GROUNDED';
+    this.isDiving = false;
+    this.isBraking = false;
+    this.fallDistance = 0; // Accumulated meters fallen on treadmill
+
+    // Ground movement parameters
     this.walkSpeed = 6.0;
     this.sprintSpeed = 10.0;
     this.acceleration = 35.0;
     this.friction = 12.0;
     this.turnSpeed = 14.0;
-
     this.jumpForce = 8.5;
-    this.gravity = -24.0;
+    this.gravity = -26.0;
     this.isGrounded = true;
+
+    // Air steering & Freefall parameters
+    this.airMaxSpeed = 16.0;          // max lateral drift speed
+    this.airDiveSpeed = 22.0;         // max lateral speed while diving
+    this.airBrakeSpeed = 10.0;        // max lateral speed while braking
+    this.airAcceleration = 22.0;      // responsiveness of lateral air controls
+    this.airDrag = 2.0;               // aerodynamic air drift momentum decay
+    this.terminalVelocityBase = -45.0;// normal fall terminal velocity
+    this.terminalVelocityDive = -75.0;// dive terminal velocity
+    this.terminalVelocityBrake = -26.0;// airbrake terminal velocity
+    this.currentTerminalVelocity = -45.0;
+
+    // Body Tilt Angles (for aerodynamic dive & roll bank)
+    this.pitchAngle = 0;
+    this.rollAngle = 0;
+    this.targetPitchAngle = 0;
+    this.targetRollAngle = 0;
 
     // Container group
     this.group = new THREE.Group();
@@ -95,8 +118,8 @@ export class Player {
     this.group.add(this.nose);
 
     // C. Ground Directional Heading Ring / Chevron
-    const headingGroup = new THREE.Group();
-    headingGroup.position.set(0, -this.halfHeight + 0.02, 0);
+    this.headingGroup = new THREE.Group();
+    this.headingGroup.position.set(0, -this.halfHeight + 0.02, 0);
 
     // Subtle heading circle
     const ringGeo = new THREE.RingGeometry(0.55, 0.62, 32);
@@ -108,7 +131,7 @@ export class Player {
       side: THREE.DoubleSide,
     });
     const ring = new THREE.Mesh(ringGeo, ringMat);
-    headingGroup.add(ring);
+    this.headingGroup.add(ring);
 
     // Direction arrow pointing forward (+Z) on the ground
     const arrowShape = new THREE.Shape();
@@ -131,110 +154,218 @@ export class Player {
       side: THREE.DoubleSide,
     });
     const groundArrow = new THREE.Mesh(arrowGeo, arrowMat);
-    headingGroup.add(groundArrow);
+    this.headingGroup.add(groundArrow);
 
-    this.group.add(headingGroup);
+    this.group.add(this.headingGroup);
 
     // Set initial position
     this.updateTransform();
   }
 
   update(dt, input, cameraAngleY) {
-    // 1. Determine Movement Direction relative to Camera
-    const moveDir = new THREE.Vector3(0, 0, 0);
+    // 1. Calculate Camera-Relative Movement Vector from WASD/Arrows
+    const inputDir = new THREE.Vector3(0, 0, 0);
+    if (input.forward) inputDir.z += 1;
+    if (input.backward) inputDir.z -= 1;
+    if (input.left) inputDir.x += 1;
+    if (input.right) inputDir.x -= 1;
 
-    if (input.forward) moveDir.z += 1;
-    if (input.backward) moveDir.z -= 1;
-    if (input.left) moveDir.x += 1;
-    if (input.right) moveDir.x -= 1;
+    const hasInput = inputDir.lengthSq() > 0.001;
+    const worldMoveDir = new THREE.Vector3(0, 0, 0);
 
-    const isMoving = moveDir.lengthSq() > 0.001;
+    if (hasInput) {
+      inputDir.normalize();
+      worldMoveDir.copy(inputDir).applyAxisAngle(new THREE.Vector3(0, 1, 0), cameraAngleY);
+    }
 
-    if (isMoving) {
-      moveDir.normalize();
+    // 2. Branch: Grounded vs Free-Fall
+    if (this.isGrounded) {
+      this.state = 'GROUNDED';
+      this.isDiving = false;
+      this.isBraking = false;
+      this.targetPitchAngle = 0;
+      this.targetRollAngle = 0;
+      this.currentTerminalVelocity = this.terminalVelocityBase;
 
-      // Transform movement direction by camera yaw
-      moveDir.applyAxisAngle(new THREE.Vector3(0, 1, 0), cameraAngleY);
+      // Ground movement
+      if (hasInput) {
+        this.targetFacingAngle = Math.atan2(worldMoveDir.x, worldMoveDir.z);
+        this.facingAngle = this.lerpAngle(
+          this.facingAngle,
+          this.targetFacingAngle,
+          this.turnSpeed * dt
+        );
 
-      // Target facing angle matches movement direction
-      this.targetFacingAngle = Math.atan2(moveDir.x, moveDir.z);
+        const currentSpeed = input.sprint ? this.sprintSpeed : this.walkSpeed;
+        const targetVelX = worldMoveDir.x * currentSpeed;
+        const targetVelZ = worldMoveDir.z * currentSpeed;
 
-      // Smoothly rotate player toward target facing angle
-      this.facingAngle = this.lerpAngle(
-        this.facingAngle,
-        this.targetFacingAngle,
-        this.turnSpeed * dt
-      );
+        this.velocity.x += (targetVelX - this.velocity.x) * Math.min(this.acceleration * dt, 1);
+        this.velocity.z += (targetVelZ - this.velocity.z) * Math.min(this.acceleration * dt, 1);
+      } else {
+        const frictionFactor = Math.max(0, 1 - this.friction * dt);
+        this.velocity.x *= frictionFactor;
+        this.velocity.z *= frictionFactor;
+      }
 
-      // Speed selection
-      const currentSpeed = input.sprint ? this.sprintSpeed : this.walkSpeed;
-      const targetVelX = moveDir.x * currentSpeed;
-      const targetVelZ = moveDir.z * currentSpeed;
-
-      this.velocity.x += (targetVelX - this.velocity.x) * Math.min(this.acceleration * dt, 1);
-      this.velocity.z += (targetVelZ - this.velocity.z) * Math.min(this.acceleration * dt, 1);
+      // Jump input
+      if (input.jump) {
+        this.velocity.y = this.jumpForce;
+        this.isGrounded = false;
+        this.state = 'FREEFALL';
+      }
     } else {
-      // Decelerate smoothly
-      const frictionFactor = Math.max(0, 1 - this.friction * dt);
-      this.velocity.x *= frictionFactor;
-      this.velocity.z *= frictionFactor;
+      // In mid-air / free-falling down the cliff chasm
+      this.state = 'FREEFALL';
+
+      // Check diving (Forward or Sprint) vs braking (Backward)
+      this.isDiving = Boolean(input.forward || input.sprint);
+      this.isBraking = Boolean(input.backward && !input.forward);
+
+      // Terminal Velocity target
+      let targetTerminal = this.terminalVelocityBase;
+      if (this.isDiving) targetTerminal = this.terminalVelocityDive;
+      else if (this.isBraking) targetTerminal = this.terminalVelocityBrake;
+
+      this.currentTerminalVelocity += (targetTerminal - this.currentTerminalVelocity) * Math.min(3.5 * dt, 1);
+
+      // Vertical Gravity & Air Drag limiting to terminal velocity
+      this.velocity.y += this.gravity * dt;
+      if (this.velocity.y < this.currentTerminalVelocity) {
+        this.velocity.y += (this.currentTerminalVelocity - this.velocity.y) * Math.min(5.0 * dt, 1);
+      }
+
+      // Lateral Air Steering (Air Drift & Carving)
+      const maxAirSpeed = this.isDiving
+        ? this.airDiveSpeed
+        : (this.isBraking ? this.airBrakeSpeed : this.airMaxSpeed);
+
+      if (hasInput) {
+        const targetVelX = worldMoveDir.x * maxAirSpeed;
+        const targetVelZ = worldMoveDir.z * maxAirSpeed;
+
+        this.velocity.x += (targetVelX - this.velocity.x) * Math.min(this.airAcceleration * dt, 1);
+        this.velocity.z += (targetVelZ - this.velocity.z) * Math.min(this.airAcceleration * dt, 1);
+
+        // Turn player facing direction smoothly toward drift
+        this.targetFacingAngle = Math.atan2(worldMoveDir.x, worldMoveDir.z);
+        this.facingAngle = this.lerpAngle(
+          this.facingAngle,
+          this.targetFacingAngle,
+          this.turnSpeed * 0.7 * dt
+        );
+      } else {
+        // Aerodynamic air drag decay (retains satisfying air momentum)
+        const dragFactor = Math.max(0, 1 - this.airDrag * dt);
+        this.velocity.x *= dragFactor;
+        this.velocity.z *= dragFactor;
+      }
+
+      // Aerodynamic Body Tilt: Pitch (nose dive) & Roll (bank turn)
+      if (this.isDiving) {
+        this.targetPitchAngle = 0.85; // ~48° forward dive
+      } else if (this.isBraking) {
+        this.targetPitchAngle = -0.2; // ~-11° slight spread/brake tilt back
+      } else {
+        this.targetPitchAngle = 0.25; // ~14° neutral forward glide angle
+      }
+
+      // Roll bank when strafing left/right
+      if (input.left && !input.right) {
+        this.targetRollAngle = 0.35; // bank left
+      } else if (input.right && !input.left) {
+        this.targetRollAngle = -0.35; // bank right
+      } else {
+        this.targetRollAngle = 0;
+      }
     }
 
-    // 2. Jump Input & Gravity
-    if (input.jump && this.isGrounded) {
-      this.velocity.y = this.jumpForce;
-      this.isGrounded = false;
-    }
+    // 3. Smooth Body Tilt Interpolation
+    this.pitchAngle += (this.targetPitchAngle - this.pitchAngle) * Math.min(8.0 * dt, 1);
+    this.rollAngle += (this.targetRollAngle - this.rollAngle) * Math.min(8.0 * dt, 1);
 
-    // Apply gravity
-    this.velocity.y += this.gravity * dt;
-
-    // 3. Update Position
+    // 4. Position Integration & Treadmill Anchor
     this.position.x += this.velocity.x * dt;
-    this.position.y += this.velocity.y * dt;
     this.position.z += this.velocity.z * dt;
 
-    // 4. Ground / Surface Collision Check
-    const playerFeetY = this.position.y - this.halfHeight;
-    const surfaceY = this.world?.getSurfaceElevation
-      ? this.world.getSurfaceElevation(this.position.x, this.position.z, this.position.y)
-      : (this.world?.isPositionOnGround?.(this.position.x, this.position.z) ? this.world.getSurfaceY() : null);
+    if (this.isGrounded) {
+      this.position.y += this.velocity.y * dt;
 
-    if (surfaceY !== null && playerFeetY <= surfaceY) {
-      // Landed on a solid surface (cliff top or floor)
-      this.position.y = surfaceY + this.halfHeight;
-      this.velocity.y = 0;
-      this.isGrounded = true;
+      // Check if still on the starting cliff platform
+      const playerFeetY = this.position.y - this.halfHeight;
+      const surfaceY = this.world?.getSurfaceElevation
+        ? this.world.getSurfaceElevation(this.position.x, this.position.z, this.position.y)
+        : null;
+
+      if (surfaceY !== null && playerFeetY <= surfaceY) {
+        this.position.y = surfaceY + this.halfHeight;
+        this.velocity.y = 0;
+        this.isGrounded = true;
+        this.state = 'GROUNDED';
+      } else {
+        // Stepped off cliff edge into freefall
+        this.isGrounded = false;
+        this.state = 'FREEFALL';
+      }
     } else {
-      // In mid-air or plummeting down the chasm
-      this.isGrounded = false;
+      // In FREEFALL: Player Y remains stationary at halfHeight (Treadmill approach A)
+      this.state = 'FREEFALL';
+      this.position.y = this.halfHeight;
+
+      // Accumulate distance fallen
+      const scrollSpeed = Math.max(0, -this.velocity.y);
+      this.fallDistance += scrollSpeed * dt;
+
+      // Constrain player lateral movement inside canyon boundaries
+      const canyonBound = 16.0;
+      this.position.x = Math.max(-canyonBound, Math.min(canyonBound, this.position.x));
+      this.position.z = Math.max(-canyonBound, Math.min(canyonBound, this.position.z));
     }
 
-    // 5. Fall Respawn (if fell off the chasm floor into deep void)
-    if (this.position.y < -35) {
-      this.respawn();
-    }
-
-    // 6. Update Visual Transform
+    // 5. Update Visual Transform
     this.updateTransform();
   }
 
   updateTransform() {
     this.group.position.copy(this.position);
 
-    // Apply facing rotation around Y only - no bobbing, no tilting
-    this.group.rotation.y = this.facingAngle;
+    // Apply pitch, yaw, roll rotation in YXZ order
+    this.group.rotation.order = 'YXZ';
+    this.group.rotation.set(this.pitchAngle, this.facingAngle, this.rollAngle);
+
+    if (this.headingGroup) {
+      this.headingGroup.visible = this.isGrounded;
+    }
   }
 
   respawn() {
+    this.world?.reset();
     const spawnPos = this.world?.getSpawnPosition
       ? this.world.getSpawnPosition()
-      : new THREE.Vector3(0, 1.0, 0);
+      : new THREE.Vector3(0, 1.0, -6);
     this.position.copy(spawnPos);
     this.velocity.set(0, 0, 0);
+    this.fallDistance = 0;
     this.facingAngle = 0;
     this.targetFacingAngle = 0;
+    this.pitchAngle = 0;
+    this.rollAngle = 0;
+    this.targetPitchAngle = 0;
+    this.targetRollAngle = 0;
+    this.currentTerminalVelocity = this.terminalVelocityBase;
+    this.isDiving = false;
+    this.isBraking = false;
     this.isGrounded = true;
+    this.state = 'GROUNDED';
+    this.updateTransform();
+  }
+
+  getScrollSpeed() {
+    return this.state === 'FREEFALL' ? Math.max(0, -this.velocity.y) : 0;
+  }
+
+  getFallSpeed() {
+    return -this.velocity.y;
   }
 
   lerpAngle(a, b, t) {

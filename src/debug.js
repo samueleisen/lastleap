@@ -58,16 +58,15 @@ export class DebugManager {
     const heading = player.getFacingDegrees();
     const isGrounded = player.isGrounded;
 
-    let state = 'Idle';
-    if (!isGrounded) {
-      state = player.velocity.y < -2 ? 'Freefall' : 'In Air';
-    } else if (pos.y > 100) {
-      if (speed > 7.0) state = 'Cliff Sprint';
-      else if (speed > 0.2) state = 'Cliff Walk';
-      else state = 'Cliff Ready';
+    let state = player.state || 'Idle';
+    if (state === 'FREEFALL') {
+      if (player.isDiving) state = 'Freefall (Diving)';
+      else if (player.isBraking) state = 'Freefall (Braking)';
+      else state = 'Freefall (Glide)';
     } else {
-      if (speed > 0.2) state = 'Floor Walk';
-      else state = 'Floor Landed';
+      if (speed > 7.0) state = 'Platform Sprint';
+      else if (speed > 0.2) state = 'Platform Walk';
+      else state = 'Platform Ready';
     }
 
     const camMode = this.game.cameraController.mode;
@@ -75,10 +74,10 @@ export class DebugManager {
 
     this.domElement.innerHTML = `
 <div class="dbg-title">DEBUG OVERLAY <span class="dbg-fps">${this.currentFps} FPS</span></div>
-<div class="dbg-row"><span>Altitude</span><span>${pos.y.toFixed(1)} m</span></div>
-<div class="dbg-row"><span>Position</span><span>(${pos.x.toFixed(1)}, ${pos.y.toFixed(1)}, ${pos.z.toFixed(1)})</span></div>
+<div class="dbg-row"><span>Distance Fallen</span><span>${player.fallDistance.toFixed(0)} m</span></div>
+<div class="dbg-row"><span>Fall Speed</span><span>${player.getScrollSpeed().toFixed(1)} m/s</span></div>
 <div class="dbg-row"><span>Horiz Speed</span><span>${speed.toFixed(1)} m/s</span></div>
-<div class="dbg-row"><span>Vert Velocity</span><span>${player.velocity.y.toFixed(1)} m/s</span></div>
+<div class="dbg-row"><span>Lateral Pos</span><span>(${pos.x.toFixed(1)}, ${pos.z.toFixed(1)})</span></div>
 <div class="dbg-row"><span>Heading</span><span>${heading}°</span></div>
 <div class="dbg-row"><span>State</span><span>${state}</span></div>
 <div class="dbg-row"><span>Grounded</span><span>${isGrounded ? 'YES' : 'NO'}</span></div>

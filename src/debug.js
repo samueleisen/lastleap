@@ -59,7 +59,9 @@ export class DebugManager {
     const isGrounded = player.isGrounded;
 
     let state = player.state || 'Idle';
-    if (state === 'FREEFALL') {
+    if (this.game.gameManager?.state === 'GAME_OVER') {
+      state = 'CRASHED (Game Over)';
+    } else if (state === 'FREEFALL') {
       if (player.isDiving) state = 'Freefall (Diving)';
       else if (player.isBraking) state = 'Freefall (Braking)';
       else state = 'Freefall (Glide)';

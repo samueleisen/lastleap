@@ -1,5 +1,10 @@
 import * as THREE from 'three';
 
+// Static scratch vectors to guarantee 0 heap allocation per frame
+const _inputDir = new THREE.Vector3();
+const _worldMoveDir = new THREE.Vector3();
+const _upAxis = new THREE.Vector3(0, 1, 0);
+
 /**
  * Plain capsule shaped player with clear facing direction indicator
  * "plain capsule shape player with facing direction"
@@ -163,19 +168,19 @@ export class Player {
   }
 
   update(dt, input, cameraAngleY) {
-    // 1. Calculate Camera-Relative Movement Vector from WASD/Arrows
-    const inputDir = new THREE.Vector3(0, 0, 0);
-    if (input.forward) inputDir.z += 1;
-    if (input.backward) inputDir.z -= 1;
-    if (input.left) inputDir.x += 1;
-    if (input.right) inputDir.x -= 1;
+    // 1. Calculate Camera-Relative Movement Vector from WASD/Arrows (Zero allocations)
+    _inputDir.set(0, 0, 0);
+    if (input.forward) _inputDir.z += 1;
+    if (input.backward) _inputDir.z -= 1;
+    if (input.left) _inputDir.x += 1;
+    if (input.right) _inputDir.x -= 1;
 
-    const hasInput = inputDir.lengthSq() > 0.001;
-    const worldMoveDir = new THREE.Vector3(0, 0, 0);
+    const hasInput = _inputDir.lengthSq() > 0.001;
+    _worldMoveDir.set(0, 0, 0);
 
     if (hasInput) {
-      inputDir.normalize();
-      worldMoveDir.copy(inputDir).applyAxisAngle(new THREE.Vector3(0, 1, 0), cameraAngleY);
+      _inputDir.normalize();
+      _worldMoveDir.copy(_inputDir).applyAxisAngle(_upAxis, cameraAngleY);
     }
 
     // 2. Branch: Grounded vs Free-Fall
@@ -189,7 +194,7 @@ export class Player {
 
       // Ground movement
       if (hasInput) {
-        this.targetFacingAngle = Math.atan2(worldMoveDir.x, worldMoveDir.z);
+        this.targetFacingAngle = Math.atan2(_worldMoveDir.x, _worldMoveDir.z);
         this.facingAngle = this.lerpAngle(
           this.facingAngle,
           this.targetFacingAngle,
@@ -197,8 +202,8 @@ export class Player {
         );
 
         const currentSpeed = input.sprint ? this.sprintSpeed : this.walkSpeed;
-        const targetVelX = worldMoveDir.x * currentSpeed;
-        const targetVelZ = worldMoveDir.z * currentSpeed;
+        const targetVelX = _worldMoveDir.x * currentSpeed;
+        const targetVelZ = _worldMoveDir.z * currentSpeed;
 
         this.velocity.x += (targetVelX - this.velocity.x) * Math.min(this.acceleration * dt, 1);
         this.velocity.z += (targetVelZ - this.velocity.z) * Math.min(this.acceleration * dt, 1);
@@ -241,14 +246,14 @@ export class Player {
         : (this.isBraking ? this.airBrakeSpeed : this.airMaxSpeed);
 
       if (hasInput) {
-        const targetVelX = worldMoveDir.x * maxAirSpeed;
-        const targetVelZ = worldMoveDir.z * maxAirSpeed;
+        const targetVelX = _worldMoveDir.x * maxAirSpeed;
+        const targetVelZ = _worldMoveDir.z * maxAirSpeed;
 
         this.velocity.x += (targetVelX - this.velocity.x) * Math.min(this.airAcceleration * dt, 1);
         this.velocity.z += (targetVelZ - this.velocity.z) * Math.min(this.airAcceleration * dt, 1);
 
         // Turn player facing direction smoothly toward drift
-        this.targetFacingAngle = Math.atan2(worldMoveDir.x, worldMoveDir.z);
+        this.targetFacingAngle = Math.atan2(_worldMoveDir.x, _worldMoveDir.z);
         this.facingAngle = this.lerpAngle(
           this.facingAngle,
           this.targetFacingAngle,

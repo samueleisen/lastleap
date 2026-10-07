@@ -5,13 +5,15 @@ import { Player } from './player.js';
 import { CameraController } from './camera.js';
 import { InputManager } from './controls.js';
 import { DebugManager } from './debug.js';
+import { GameManager } from './gameManager.js';
+import { HUD } from './hud.js';
 
 class GameApp {
   constructor() {
     this.container = document.getElementById('game-container');
     this.sceneManager = new SceneManager(this.container);
 
-    // 1. Low-poly vertical world (300m cliff + abyss floor)
+    // 1. Low-poly vertical world (treadmill with pooled hazards)
     this.world = new World(this.sceneManager.scene);
 
     // 2. Capsule player with facing direction & free-fall physics
@@ -27,10 +29,16 @@ class GameApp {
     // 4. Input Manager
     this.input = new InputManager(this.sceneManager.renderer.domElement);
 
-    // 5. Standalone Debug Manager (disabled by default, 0 computation)
+    // 5. Game Manager & State Machine
+    this.gameManager = new GameManager(this);
+
+    // 6. Zero-thrash Arcade HUD
+    this.hud = new HUD(this.gameManager);
+
+    // 7. Standalone Debug Manager (disabled by default, 0 computation)
     this.debug = new DebugManager(this);
 
-    // 6. Game Loop timing
+    // 8. Game Loop timing
     this.clock = new THREE.Clock();
 
     // Themes
@@ -43,12 +51,12 @@ class GameApp {
   }
 
   setupShortcuts() {
-    // Keyboard shortcuts (functional silently without HUD)
+    // Keyboard shortcuts
     this.input.onKeyCallback = (code) => {
       if (code === 'KeyC') {
         this.cameraController.toggleMode();
       } else if (code === 'KeyR') {
-        this.player.respawn();
+        this.gameManager.restart();
       } else if (code === 'KeyT') {
         this.cycleTheme();
       } else if (code === 'F3' || code === 'Backquote') {
@@ -69,13 +77,17 @@ class GameApp {
     const dt = Math.min(this.clock.getDelta(), 0.1);
     const inputState = this.input.getState();
 
-    // 1. Update Player
-    const cameraYaw = this.cameraController.getYaw();
-    this.player.update(dt, inputState, cameraYaw);
+    // 1. Update Player and World (active motion unless crashed)
+    if (this.gameManager.state !== 'GAME_OVER') {
+      const cameraYaw = this.cameraController.getYaw();
+      this.player.update(dt, inputState, cameraYaw);
 
-    // 2. Update World (Treadmill vertical scroll)
-    const scrollSpeed = this.player.getScrollSpeed();
-    this.world.update(dt, scrollSpeed);
+      const scrollSpeed = this.player.getScrollSpeed();
+      this.world.update(dt, scrollSpeed);
+    }
+
+    // 2. Update Game Manager (collision detection & scoring)
+    this.gameManager.update(dt);
 
     // 3. Update Camera
     this.cameraController.update(dt);

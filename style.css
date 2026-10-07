@@ -93,3 +93,211 @@ html, body {
   font-size: 10px;
   color: #64748b;
 }
+
+/* ========================================================
+   Arcade HUD Styles
+   ======================================================== */
+#arcade-hud {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 50;
+}
+
+#arcade-hud .hidden {
+  display: none !important;
+}
+
+/* Top Stats Bar */
+#hud-top-bar {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 16px;
+  background: rgba(14, 20, 32, 0.75);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  padding: 10px 24px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.hud-stat-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 90px;
+}
+
+.hud-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: #64748b;
+  letter-spacing: 0.1em;
+}
+
+.hud-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: #f8fafc;
+  margin-top: 2px;
+}
+
+#hud-score {
+  color: #00f0ff;
+  text-shadow: 0 0 12px rgba(0, 240, 255, 0.4);
+}
+
+/* Multiplier badges */
+.hud-mult-glide {
+  color: #94a3b8;
+}
+
+.hud-mult-dive {
+  color: #00ffcc;
+  text-shadow: 0 0 10px rgba(0, 255, 204, 0.6);
+}
+
+.hud-mult-brake {
+  color: #f59e0b;
+}
+
+/* Near-Miss Combo Floating Popup */
+#hud-nearmiss {
+  position: absolute;
+  top: 90px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(239, 68, 68, 0.85);
+  color: #ffffff;
+  padding: 6px 18px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.6);
+  transition: opacity 0.4s ease, transform 0.4s ease;
+}
+
+#hud-nearmiss.fade-out {
+  opacity: 0;
+  transform: translate(-50%, -15px);
+}
+
+/* Ready State Prompt */
+#hud-ready-prompt {
+  position: absolute;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+  background: rgba(10, 14, 23, 0.7);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 12px 28px;
+  color: #f8fafc;
+}
+
+.prompt-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #f59e0b;
+  letter-spacing: 0.1em;
+  margin-bottom: 4px;
+}
+
+.prompt-sub {
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+/* Game Over Modal Card */
+#hud-gameover {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(8, 12, 20, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  pointer-events: auto;
+}
+
+.gameover-card {
+  background: #111827;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 16px;
+  padding: 32px 40px;
+  text-align: center;
+  width: 340px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+}
+
+.gameover-header {
+  font-size: 26px;
+  font-weight: 800;
+  color: #ef4444;
+  letter-spacing: 0.15em;
+  margin-bottom: 20px;
+  text-shadow: 0 0 20px rgba(239, 68, 68, 0.5);
+}
+
+.gameover-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.go-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: #94a3b8;
+}
+
+.go-row span:last-child {
+  font-weight: 600;
+  color: #f8fafc;
+}
+
+.go-row.highlight span:last-child {
+  color: #00f0ff;
+  font-weight: 700;
+}
+
+#go-retry-btn {
+  width: 100%;
+  padding: 12px;
+  background: linear-gradient(135deg, #00f0ff, #0099ff);
+  color: #080d1a;
+  border: none;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+#go-retry-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 240, 255, 0.4);
+}
+
+#go-retry-btn:active {
+  transform: translateY(0);
+}

@@ -12,7 +12,7 @@ export class SceneManager {
       60,
       window.innerWidth / window.innerHeight,
       0.1,
-      1000
+      2500
     );
 
     this.renderer = new THREE.WebGLRenderer({
@@ -38,23 +38,27 @@ export class SceneManager {
   }
 
   initLighting() {
-    // Hemisphere light for soft ambient sky/ground reflections
-    this.hemiLight = new THREE.HemisphereLight(0xddeeff, 0x1a202c, 0.7);
-    this.hemiLight.position.set(0, 50, 0);
+    // Hemisphere light for soft ambient sky/ground reflections across vertical span
+    this.hemiLight = new THREE.HemisphereLight(0xddeeff, 0x1a202c, 0.75);
+    this.hemiLight.position.set(0, 350, 0);
     this.scene.add(this.hemiLight);
 
-    // Directional sunlight casting crisp soft shadows
-    this.dirLight = new THREE.DirectionalLight(0xfffaed, 1.3);
-    this.dirLight.position.set(24, 38, 20);
+    // Directional sunlight positioned high to illuminate cliff face and ledge
+    this.dirLight = new THREE.DirectionalLight(0xfffaed, 1.4);
+    this.dirLight.position.set(50, 390, 40);
     this.dirLight.castShadow = true;
 
-    // Tune shadow camera bounds to cover the square ground smoothly
+    // Direct shadow camera toward cliff launch pad
+    this.dirLight.target.position.set(0, 300, -10);
+    this.scene.add(this.dirLight.target);
+
+    // Tune shadow bounds to cover the cliff platform crisply
     this.dirLight.shadow.mapSize.width = 2048;
     this.dirLight.shadow.mapSize.height = 2048;
-    this.dirLight.shadow.camera.near = 0.5;
-    this.dirLight.shadow.camera.far = 120;
+    this.dirLight.shadow.camera.near = 1;
+    this.dirLight.shadow.camera.far = 200;
 
-    const shadowDist = 28;
+    const shadowDist = 45;
     this.dirLight.shadow.camera.left = -shadowDist;
     this.dirLight.shadow.camera.right = shadowDist;
     this.dirLight.shadow.camera.top = shadowDist;
@@ -63,17 +67,17 @@ export class SceneManager {
 
     this.scene.add(this.dirLight);
 
-    // Soft secondary fill light
-    this.fillLight = new THREE.DirectionalLight(0x7090b0, 0.4);
-    this.fillLight.position.set(-20, 20, -20);
+    // Secondary fill light for under-ledge and lower chasm visibility
+    this.fillLight = new THREE.DirectionalLight(0x7090b0, 0.45);
+    this.fillLight.position.set(-60, 200, -30);
     this.scene.add(this.fillLight);
   }
 
   initSky() {
     // Sophisticated deep twilight gradient backdrop
     this.scene.background = new THREE.Color(0x0e131f);
-    // Subtle distant fog for depth
-    this.scene.fog = new THREE.FogExp2(0x0e131f, 0.008);
+    // Atmospheric fog calibrated so chasm floor is mystically visible 300m below
+    this.scene.fog = new THREE.FogExp2(0x0e131f, 0.0028);
   }
 
   setTheme(themeName) {

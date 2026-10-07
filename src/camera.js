@@ -18,9 +18,9 @@ export class CameraController {
     this.maxDistance = 16.0;
 
     this.yaw = 0; // horizontal angle
-    this.pitch = 0.35; // vertical angle (radians)
-    this.minPitch = -0.15;
-    this.maxPitch = 1.35;
+    this.pitch = 0.25; // vertical angle (radians)
+    this.minPitch = -1.25; // allows tilting down to look over the cliff edge
+    this.maxPitch = 1.45;
 
     // Follow target smoothing
     this.targetPosition = new THREE.Vector3();

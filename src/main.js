@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { SceneManager } from './scene.js';
-import { Ground } from './ground.js';
+import { World } from './world.js';
 import { Player } from './player.js';
 import { CameraController } from './camera.js';
 import { InputManager } from './controls.js';
@@ -11,11 +11,11 @@ class GameApp {
     this.container = document.getElementById('game-container');
     this.sceneManager = new SceneManager(this.container);
 
-    // 1. Plain square smooth ground
-    this.ground = new Ground(this.sceneManager.scene, 42);
+    // 1. Low-poly vertical world (300m cliff + abyss floor)
+    this.world = new World(this.sceneManager.scene);
 
-    // 2. Plain capsule shape player with facing direction
-    this.player = new Player(this.sceneManager.scene, this.ground);
+    // 2. Capsule player with facing direction & free-fall physics
+    this.player = new Player(this.sceneManager.scene, this.world);
 
     // 3. Camera Controller
     this.cameraController = new CameraController(

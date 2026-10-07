@@ -5,9 +5,9 @@ import * as THREE from 'three';
  * "plain capsule shape player with facing direction"
  */
 export class Player {
-  constructor(scene, ground) {
+  constructor(scene, world) {
     this.scene = scene;
-    this.ground = ground;
+    this.world = world;
 
     // Capsule dimensions
     this.radius = 0.45;
@@ -16,7 +16,8 @@ export class Player {
     this.halfHeight = this.height / 2; // 1.0
 
     // Physics & Movement properties
-    this.position = new THREE.Vector3(0, this.halfHeight, 0);
+    const spawn = this.world?.getSpawnPosition ? this.world.getSpawnPosition() : new THREE.Vector3(0, 1.0, 0);
+    this.position = spawn.clone();
     this.velocity = new THREE.Vector3(0, 0, 0);
     this.facingAngle = 0; // rotation around Y axis (radians), 0 = facing +Z
     this.targetFacingAngle = 0;
@@ -193,23 +194,24 @@ export class Player {
     this.position.y += this.velocity.y * dt;
     this.position.z += this.velocity.z * dt;
 
-    // 4. Ground Collision Check
-    const surfaceY = this.ground.getSurfaceY();
+    // 4. Ground / Surface Collision Check
     const playerFeetY = this.position.y - this.halfHeight;
-    const isOnSquare = this.ground.isPositionOnGround(this.position.x, this.position.z);
+    const surfaceY = this.world?.getSurfaceElevation
+      ? this.world.getSurfaceElevation(this.position.x, this.position.z, this.position.y)
+      : (this.world?.isPositionOnGround?.(this.position.x, this.position.z) ? this.world.getSurfaceY() : null);
 
-    if (isOnSquare && playerFeetY <= surfaceY) {
-      // Landed on ground
+    if (surfaceY !== null && playerFeetY <= surfaceY) {
+      // Landed on a solid surface (cliff top or floor)
       this.position.y = surfaceY + this.halfHeight;
       this.velocity.y = 0;
       this.isGrounded = true;
     } else {
-      // In the air (either jumped or stepped off the edge of the square)
+      // In mid-air or plummeting down the chasm
       this.isGrounded = false;
     }
 
-    // 5. Fall Respawn (if fell off the flat square ground)
-    if (this.position.y < -25) {
+    // 5. Fall Respawn (if fell off the chasm floor into deep void)
+    if (this.position.y < -35) {
       this.respawn();
     }
 
@@ -225,11 +227,14 @@ export class Player {
   }
 
   respawn() {
-    this.position.set(0, this.halfHeight + 2, 0);
+    const spawnPos = this.world?.getSpawnPosition
+      ? this.world.getSpawnPosition()
+      : new THREE.Vector3(0, 1.0, 0);
+    this.position.copy(spawnPos);
     this.velocity.set(0, 0, 0);
     this.facingAngle = 0;
     this.targetFacingAngle = 0;
-    this.isGrounded = false;
+    this.isGrounded = true;
   }
 
   lerpAngle(a, b, t) {

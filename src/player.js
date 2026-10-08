@@ -27,8 +27,8 @@ export class Player {
     this.facingAngle = 0; // rotation around Y axis (radians), 0 = facing +Z
     this.targetFacingAngle = 0;
 
-    // States: 'GROUNDED', 'FREEFALL'
-    this.state = 'GROUNDED';
+    // States: 'READY', 'FREEFALL'
+    this.state = 'READY';
     this.isDiving = false;
     this.isBraking = false;
     this.fallDistance = 0; // Accumulated meters fallen on treadmill
@@ -183,44 +183,35 @@ export class Player {
       _worldMoveDir.copy(_inputDir).applyAxisAngle(_upAxis, cameraAngleY);
     }
 
-    // 2. Branch: Grounded vs Free-Fall
+    // 2. Branch: Perched on Cliff (READY) vs Free-Fall (Gliding)
     if (this.isGrounded) {
-      this.state = 'GROUNDED';
+      this.state = 'READY';
       this.isDiving = false;
       this.isBraking = false;
       this.targetPitchAngle = 0;
       this.targetRollAngle = 0;
+      this.pitchAngle = 0;
+      this.rollAngle = 0;
+      this.facingAngle = 0;
+      this.targetFacingAngle = 0;
       this.currentTerminalVelocity = this.terminalVelocityBase;
 
-      // Ground movement
-      if (hasInput) {
-        this.targetFacingAngle = Math.atan2(_worldMoveDir.x, _worldMoveDir.z);
-        this.facingAngle = this.lerpAngle(
-          this.facingAngle,
-          this.targetFacingAngle,
-          this.turnSpeed * dt
-        );
+      // Movement disabled while perched: locked poised at the cliff edge
+      this.velocity.set(0, 0, 0);
+      const spawn = this.world?.getSpawnPosition
+        ? this.world.getSpawnPosition()
+        : new THREE.Vector3(0, 1.0, -18);
+      this.position.copy(spawn);
 
-        const currentSpeed = input.sprint ? this.sprintSpeed : this.walkSpeed;
-        const targetVelX = _worldMoveDir.x * currentSpeed;
-        const targetVelZ = _worldMoveDir.z * currentSpeed;
-
-        this.velocity.x += (targetVelX - this.velocity.x) * Math.min(this.acceleration * dt, 1);
-        this.velocity.z += (targetVelZ - this.velocity.z) * Math.min(this.acceleration * dt, 1);
-      } else {
-        const frictionFactor = Math.max(0, 1 - this.friction * dt);
-        this.velocity.x *= frictionFactor;
-        this.velocity.z *= frictionFactor;
-      }
-
-      // Jump input
+      // Pressing [Space] is all it takes to leap and start the game!
       if (input.jump) {
-        this.velocity.y = this.jumpForce;
         this.isGrounded = false;
         this.state = 'FREEFALL';
+        this.velocity.z = 12.0;   // Forward leap impulse into the canyon
+        this.velocity.y = -1.0; // Immediate downward plunge
       }
     } else {
-      // In mid-air / free-falling down the cliff chasm
+      // In mid-air: Active free-fall with full air steering
       this.state = 'FREEFALL';
 
       // Check diving (Forward or Sprint) vs braking (Backward)
@@ -290,31 +281,10 @@ export class Player {
     this.rollAngle += (this.targetRollAngle - this.rollAngle) * Math.min(8.0 * dt, 1);
 
     // 4. Position Integration & Treadmill Anchor
-    this.position.x += this.velocity.x * dt;
-    this.position.z += this.velocity.z * dt;
-
-    if (this.isGrounded) {
-      this.position.y += this.velocity.y * dt;
-
-      // Check if still on the starting cliff platform
-      const playerFeetY = this.position.y - this.halfHeight;
-      const surfaceY = this.world?.getSurfaceElevation
-        ? this.world.getSurfaceElevation(this.position.x, this.position.z, this.position.y)
-        : null;
-
-      if (surfaceY !== null && playerFeetY <= surfaceY) {
-        this.position.y = surfaceY + this.halfHeight;
-        this.velocity.y = 0;
-        this.isGrounded = true;
-        this.state = 'GROUNDED';
-      } else {
-        // Stepped off cliff edge into freefall
-        this.isGrounded = false;
-        this.state = 'FREEFALL';
-      }
-    } else {
+    if (!this.isGrounded) {
       // In FREEFALL: Player Y remains stationary at halfHeight (Treadmill approach A)
-      this.state = 'FREEFALL';
+      this.position.x += this.velocity.x * dt;
+      this.position.z += this.velocity.z * dt;
       this.position.y = this.halfHeight;
 
       // Accumulate distance fallen
@@ -322,9 +292,10 @@ export class Player {
       this.fallDistance += scrollSpeed * dt;
 
       // Constrain player lateral movement inside canyon boundaries
-      const canyonBound = 16.0;
-      this.position.x = Math.max(-canyonBound, Math.min(canyonBound, this.position.x));
-      this.position.z = Math.max(-canyonBound, Math.min(canyonBound, this.position.z));
+      const boundX = 16.5;
+      const minZ = this.position.z > -16.5 ? -16.5 : -18.0;
+      this.position.x = Math.max(-boundX, Math.min(boundX, this.position.x));
+      this.position.z = Math.max(minZ, Math.min(boundX, this.position.z));
     }
 
     // 5. Update Visual Transform
@@ -347,7 +318,7 @@ export class Player {
     this.world?.reset();
     const spawnPos = this.world?.getSpawnPosition
       ? this.world.getSpawnPosition()
-      : new THREE.Vector3(0, 1.0, -6);
+      : new THREE.Vector3(0, 1.0, -18);
     this.position.copy(spawnPos);
     this.velocity.set(0, 0, 0);
     this.fallDistance = 0;
@@ -361,7 +332,7 @@ export class Player {
     this.isDiving = false;
     this.isBraking = false;
     this.isGrounded = true;
-    this.state = 'GROUNDED';
+    this.state = 'READY';
     this.updateTransform();
   }
 

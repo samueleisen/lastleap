@@ -20,15 +20,15 @@ export class World {
       maxZ: 17,
     };
 
-    // Initial platform launch bounds
+    // Initial platform launch bounds (offset backward by 24 behind the player)
     this.cliffBounds = {
       minX: -12,
       maxX: 12,
-      minZ: -18,
-      maxZ: 6, // Leap edge at Z = 6
+      minZ: -42, // -18 - 24
+      maxZ: -18, // 6 - 24 (cliff edge at Z = -18)
     };
 
-    this.spawnPosition = new THREE.Vector3(0, 1.0, -6);
+    this.spawnPosition = new THREE.Vector3(0, 1.0, -18);
     this.isFreefallActive = false;
 
     this.group = new THREE.Group();
@@ -133,8 +133,8 @@ export class World {
 
     for (let i = 0; i < this.numSegments; i++) {
       const segment = this.createShaftSegment(this.segmentHeight);
-      // Stagger segments vertically: +30, -30, -90, -150
-      const initialY = 30 - i * this.segmentHeight;
+      // Top edge flush with Y = 0 (spans downwards only from 0 to -240)
+      const initialY = -this.segmentHeight / 2 - i * this.segmentHeight;
       segment.position.y = initialY;
       this.shaftGroup.add(segment);
       this.shaftSegments.push(segment);
@@ -211,9 +211,11 @@ export class World {
       const geo = new THREE.BoxGeometry(thickness, length, thickness);
       const mesh = new THREE.Mesh(geo, this.materials.windStreak);
 
+      // Spans downwards from Y = -60 down to -120
+      const initialY = -120 + Math.random() * 60;
       mesh.position.set(
         (Math.random() - 0.5) * 30,
-        -120 + Math.random() * 145,
+        initialY,
         (Math.random() - 0.5) * 30
       );
 
@@ -363,7 +365,7 @@ export class World {
     this.platformGroup.position.set(0, 0, 0);
 
     for (let i = 0; i < this.numSegments; i++) {
-      this.shaftSegments[i].position.y = 30 - i * this.segmentHeight;
+      this.shaftSegments[i].position.y = -this.segmentHeight / 2 - i * this.segmentHeight;
     }
 
     for (let i = 0; i < this.obstaclePool.length; i++) {
@@ -378,7 +380,7 @@ export class World {
     for (let i = 0; i < this.streaks.length; i++) {
       this.streaks[i].position.set(
         (Math.random() - 0.5) * 30,
-        -120 + Math.random() * 145,
+        -120 + Math.random() * 60,
         (Math.random() - 0.5) * 30
       );
     }

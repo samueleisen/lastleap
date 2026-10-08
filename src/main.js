@@ -55,8 +55,9 @@ class GameApp {
     this.input.onKeyCallback = (code) => {
       if (code === 'KeyC') {
         this.cameraController.toggleMode();
-      } else if (code === 'KeyR') {
+      } else if (code === 'KeyR' || (code === 'Space' && this.gameManager.state === 'GAME_OVER')) {
         this.gameManager.restart();
+        this.input.state.jump = false;
       } else if (code === 'KeyT') {
         this.cycleTheme();
       } else if (code === 'F3' || code === 'Backquote') {

@@ -51,8 +51,8 @@ export class HUD {
 
       <!-- Ready State Prompt -->
       <div id="hud-ready-prompt">
-        <div class="prompt-title">WALK TO THE EDGE & LEAP</div>
-        <div class="prompt-sub">[WASD] Steer | [Shift] / [W] Dive (2.0x) | [S] Brake (0.5x)</div>
+        <div class="prompt-title">PRESS <span class="key-badge">SPACE</span> TO LEAP</div>
+        <div class="prompt-sub">[WASD] Steer & Carve | [W / Shift] Dive (2.0x) | [S] Airbrake (0.5x)</div>
       </div>
 
       <!-- Game Over Modal Card -->
@@ -65,7 +65,7 @@ export class HUD {
             <div class="go-row"><span>Near Misses:</span><span id="go-misses">0</span></div>
             <div class="go-row highlight"><span>High Score:</span><span id="go-best">0</span></div>
           </div>
-          <button id="go-retry-btn">RETRY [R]</button>
+          <button id="go-retry-btn">RETRY [SPACE / R]</button>
         </div>
       </div>
     `.trim();

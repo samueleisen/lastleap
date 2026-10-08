@@ -136,6 +136,38 @@ export class CameraController {
     const playerPos = this.player.position;
 
     if (this.mode === 'third-person') {
+      // Option A: Pure Arcade Leap & Flight Transition
+      if (!this.isDragging && document.pointerLockElement !== this.domElement) {
+        let targetPitch = 0.059; // Cliff perch: flat looking over horizon (~3.4°)
+        let targetDistance = 6.79;
+        let targetFov = 60;
+
+        if (this.player.state === 'FREEFALL') {
+          if (this.player.isDiving) {
+            targetPitch = 1.05;    // ~60.2° steep downward vantage
+            targetDistance = 12.0; // pulled far up and back for massive overview
+            targetFov = 74;        // high speed rush FOV
+          } else if (this.player.isBraking) {
+            targetPitch = 0.75;    // ~43.0° pulled slightly closer while braking
+            targetDistance = 9.2;
+            targetFov = 60;
+          } else {
+            targetPitch = 0.92;    // ~52.7° high top-down perspective to see down the shaft
+            targetDistance = 10.5; // elevated distance ("far on top")
+            targetFov = 66;
+          }
+        }
+
+        // Smooth crane-up transition as player leaps into the void
+        this.pitch += (targetPitch - this.pitch) * Math.min(2.5 * dt, 1);
+        this.distance += (targetDistance - this.distance) * Math.min(2.2 * dt, 1);
+
+        if (Math.abs(this.camera.fov - targetFov) > 0.05) {
+          this.camera.fov += (targetFov - this.camera.fov) * Math.min(3.2 * dt, 1);
+          this.camera.updateProjectionMatrix();
+        }
+      }
+
       // Focus slightly above player center
       this.targetPosition.set(playerPos.x, playerPos.y + 0.6, playerPos.z);
       this.smoothTarget.lerp(this.targetPosition, Math.min(this.smoothFactor * dt, 1));
@@ -182,5 +214,20 @@ export class CameraController {
 
   getYaw() {
     return this.yaw;
+  }
+
+  reset() {
+    this.yaw = 0;
+    this.pitch = 0.059;
+    this.distance = 6.79;
+    this.camera.fov = 60;
+    this.camera.updateProjectionMatrix();
+
+    if (this.player) {
+      const initY = this.player.position.y + 0.6;
+      const initZ = this.player.position.z;
+      this.targetPosition.set(0, initY, initZ);
+      this.smoothTarget.set(0, initY, initZ);
+    }
   }
 }

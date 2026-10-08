@@ -186,8 +186,9 @@ export class GameManager {
     this.nearMissCount = 0;
     this.isNewHighScore = false;
 
-    // Reset player and world
+    // Reset player, world, and camera
     this.game.player.respawn();
+    this.game.cameraController?.reset();
 
     if (this.onStateChange) {
       this.onStateChange(this.state);

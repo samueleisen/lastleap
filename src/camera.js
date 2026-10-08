@@ -13,18 +13,20 @@ export class CameraController {
     this.mode = 'third-person';
 
     // Third-person spherical coordinates around player
-    this.distance = 7.0;
+    this.distance = 6.79;
     this.minDistance = 2.5;
     this.maxDistance = 16.0;
 
     this.yaw = 0; // horizontal angle
-    this.pitch = 0.25; // vertical angle (radians)
+    this.pitch = 0.059; // vertical angle (~3.38° gives default Y = 2.0 at 6.79m distance)
     this.minPitch = -1.25; // allows tilting down to look over the cliff edge
     this.maxPitch = 1.45;
 
     // Follow target smoothing
-    this.targetPosition = new THREE.Vector3();
-    this.smoothTarget = new THREE.Vector3();
+    const initY = this.player ? this.player.position.y + 0.6 : 1.6;
+    const initZ = this.player ? this.player.position.z : -18;
+    this.targetPosition = new THREE.Vector3(0, initY, initZ);
+    this.smoothTarget = new THREE.Vector3(0, initY, initZ);
     this.smoothFactor = 12.0;
 
     // Mouse drag state
